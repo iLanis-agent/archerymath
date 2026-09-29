@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ArcheryMath - tuner</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #171310; color: #f4ede4; margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+  main { max-width: 720px; padding: 32px 20px 48px; width: 100%; box-sizing: border-box; }
+  h1 { font-size: 1.9rem; margin: 0 0 4px; }
+  p.sub { color: #cbb79f; margin: 0 0 20px; }
+  .card { background: #241c15; border: 1px solid #453626; border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; }
+  label { display: block; color: #b3a08a; font-size: 0.82rem; margin-bottom: 4px; }
+  input, select { width: 100%; box-sizing: border-box; background: #171310; border: 1px solid #54432f; color: #f4ede4; border-radius: 8px; padding: 9px 10px; font-size: 0.95rem; }
+  .presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .presets button { background: #2f251b; color: #e8d5bd; border: 1px solid #54432f; border-radius: 999px; padding: 7px 14px; font-size: 0.85rem; cursor: pointer; }
+  .presets button:hover { background: #403325; }
+  .out { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .metric { background: #171310; border: 1px solid #453626; border-radius: 10px; padding: 12px 14px; }
+  .metric .v { font-size: 1.35rem; font-weight: 700; color: #f0ab68; }
+  .metric .k { color: #b3a08a; font-size: 0.78rem; margin-top: 2px; }
+  .note { color: #a8957e; font-size: 0.82rem; line-height: 1.5; margin-top: 10px; }
+  a.back { color: #f0ab68; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>&#127993; ArcheryMath</h1>
+  <p class="sub">Arrow setup tuner. Enter your bow and arrow; get the honest numbers.</p>
+  <div class="presets">
+    <button data-p="stock">Stock 70lb target</button>
+    <button data-p="short">Short-draw hunter</button>
+    <button data-p="heavy">Heavy elk arrow</button>
+    <button data-p="toofast">Too-light speed build</button>
+  </div>
+  <div class="card">
+    <div class="grid">
+      <div><label>Bow IBO speed (fps)</label><input id="ibo" type="number" value="330" min="200"></div>
+      <div><label>Draw weight (lb)</label><input id="drawLb" type="number" value="70" min="20"></div>
+      <div><label>Draw length (in)</label><input id="drawLen" type="number" value="30" min="22" step="0.5"></div>
+      <div><label>Arrow length (in)</label><input id="lenIn" type="number" value="30" min="20" step="0.5"></div>
+      <div><label>Shaft weight (gr/in)</label><input id="shaftGpi" type="number" value="8.5" min="5" step="0.1"></div>
+      <div><label>Point weight (gr)</label><input id="pointGr" type="number" value="100" min="50" step="25"></div>
+      <div><label>Balance point from nock (in)</label><input id="balanceIn" type="number" value="17" min="0" step="0.25"></div>
+      <div><label>Check drop at (yd)</label><input id="yards" type="number" value="40" min="10"></div>
+    </div>
+  </div>
+  <div class="out">
+    <div class="metric"><div class="v" id="o-weight">-</div><div class="k">Total arrow weight</div></div>
+    <div class="metric"><div class="v" id="o-speed">-</div><div class="k">Real speed (fps)</div></div>
+    <div class="metric"><div class="v" id="o-ke">-</div><div class="k">Kinetic energy (ft-lbs)</div></div>
+    <div class="metric"><div class="v" id="o-mom">-</div><div class="k">Momentum (slug-ft/s)</div></div>
+    <div class="metric"><div class="v" id="o-gpp">-</div><div class="k">Grains per pound</div></div>
+    <div class="metric"><div class="v" id="o-foc">-</div><div class="k">Front of center</div></div>
+    <div class="metric"><div class="v" id="o-spine">-</div><div class="k">Suggested static spine</div></div>
+    <div class="metric"><div class="v" id="o-drop">-</div><div class="k">Drop at distance</div></div>
+  </div>
+  <p class="note" id="o-verdicts"></p>
+  <p class="note">Speed estimate uses shop rules of thumb; a chronograph is the truth. Never shoot an arrow under 3 grains per pound - the excess energy goes into your limbs, not the arrow.</p>
+  <p><a class="back" href="index.html">&larr; Back to ArcheryMath</a></p>
+</main>
+<script src="engine.js"></script>
+<script>
+(function () {
+  var ids = ['ibo','drawLb','drawLen','lenIn','shaftGpi','pointGr','balanceIn','yards'];
+  function num(id) { var v = parseFloat(document.getElementById(id).value); return isFinite(v) ? v : 0; }
+  function compute() {
+    if (typeof ArcheryMath === 'undefined') return;
+    var o = {
+      ibo: num('ibo'), drawLb: num('drawLb'), drawLen: num('drawLen'),
+      lenIn: num('lenIn'), shaftGpi: num('shaftGpi'), pointGr: num('pointGr')
+    };
+    var weight = ArcheryMath.arrowWeight(o);
+    var speed = ArcheryMath.realSpeed({ibo: o.ibo, drawLb: o.drawLb, drawLen: o.drawLen, grains: weight});
+    var ke = ArcheryMath.kineticEnergy(weight, speed);
+    var mom = ArcheryMath.momentum(weight, speed);
+    var g = ArcheryMath.gpp(weight, o.drawLb);
+    var f = ArcheryMath.foc(num('balanceIn'), o.lenIn);
+    var sp = ArcheryMath.spine(o.drawLb, o.lenIn);
+    var drop = ArcheryMath.dropInches(speed, num('yards'));
+    document.getElementById('o-weight').textContent = weight + ' gr';
+    document.getElementById('o-speed').textContent = speed > 0 ? speed + ' fps' : 'unsafe';
+    document.getElementById('o-ke').textContent = ke + ' ft-lbs';
+    document.getElementById('o-mom').textContent = mom.toFixed(3);
+    document.getElementById('o-gpp').textContent = g + ' gpp';
+    document.getElementById('o-foc').textContent = f + '%';
+    document.getElementById('o-spine').textContent = sp;
+    document.getElementById('o-drop').textContent = isFinite(drop) ? drop + ' in' : 'n/a';
+    document.getElementById('o-verdicts').textContent =
+      'Weight: ' + ArcheryMath.gppVerdict(g) + '. Balance: ' + ArcheryMath.focVerdict(f) +
+      '. At ' + num('yards') + ' yd: ' + ArcheryMath.dropVerdict(drop) + '.';
+  }
+  var presets = {
+    stock: {ibo:330, drawLb:70, drawLen:30, lenIn:30, shaftGpi:8.5, pointGr:100, balanceIn:17, yards:40},
+    short: {ibo:330, drawLb:60, drawLen:26.5, lenIn:27, shaftGpi:9.5, pointGr:100, balanceIn:15.5, yards:30},
+    heavy: {ibo:320, drawLb:70, drawLen:29, lenIn:29, shaftGpi:11.5, pointGr:125, balanceIn:17.5, yards:40},
+    toofast: {ibo:340, drawLb:70, drawLen:31, lenIn:31, shaftGpi:6.5, pointGr:85, balanceIn:16, yards:50}
+  };
+  Array.prototype.forEach.call(document.querySelectorAll('.presets button'), function (b) {
+    b.addEventListener('click', function () {
+      var p = presets[b.getAttribute('data-p')];
+      if (!p) return;
+      Object.keys(p).forEach(function (k) { document.getElementById(k).value = p[k]; });
+      compute();
+    });
+  });
+  ids.forEach(function (id) {
+    document.getElementById(id).addEventListener('input', compute);
+    document.getElementById(id).addEventListener('change', compute);
+  });
+  compute();
+})();
+</script>
+</body>
+</html>
